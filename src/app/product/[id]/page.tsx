@@ -1,8 +1,8 @@
-import { products } from "@/data/products";
+import { defaultProducts } from "@/data/products";
 import ProductDetail from "@/components/ProductDetail";
 
 export function generateStaticParams() {
-  return products.map((product) => ({
+  return defaultProducts.map((product) => ({
     id: product.id,
   }));
 }

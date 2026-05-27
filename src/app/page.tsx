@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { ProductCategory } from "@/types";
-import { products } from "@/data/products";
+import { useProductStore } from "@/store/product-store";
 import HeroBanner from "@/components/HeroBanner";
 import CategoryFilter from "@/components/CategoryFilter";
 import ProductCard from "@/components/ProductCard";
 
 export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory | "all">("all");
+  const { products } = useProductStore();
 
   const filteredProducts =
     selectedCategory === "all"

@@ -3,14 +3,15 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, ShoppingCart, Check, Clock, Shield } from "lucide-react";
-import { products } from "@/data/products";
 import { useCartStore } from "@/store/cart-store";
+import { useProductStore } from "@/store/product-store";
 import { formatPrice, getDiscountPercent } from "@/lib/utils";
 import { CATEGORY_LABELS } from "@/types";
 
 export default function ProductDetail() {
   const params = useParams();
   const addItem = useCartStore((state) => state.addItem);
+  const { products } = useProductStore();
   const product = products.find((p) => p.id === params.id);
 
   if (!product) {

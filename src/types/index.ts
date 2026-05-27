@@ -1,5 +1,15 @@
 // Types for digital service accounts marketplace
 
+export interface AccountInfo {
+  id: string;
+  email: string;
+  password: string;
+  note?: string; // Ghi chú thêm (VD: profile, pin code...)
+  status: "available" | "sold" | "expired";
+  soldTo?: string; // Email khách đã mua
+  soldAt?: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -13,6 +23,7 @@ export interface Product {
   duration?: string; // e.g., "1 tháng", "1 năm", "Vĩnh viễn"
   status: "available" | "out_of_stock" | "hidden";
   createdAt: string;
+  accounts: AccountInfo[]; // Danh sách tài khoản cho sản phẩm này
 }
 
 export type ProductCategory =
