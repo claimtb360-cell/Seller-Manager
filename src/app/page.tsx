@@ -4,7 +4,7 @@ import { useState, useMemo, useRef } from "react";
 import {
   Package, Plus, Search, Trash2, Edit, Eye, EyeOff, Copy, Check,
   X, Save, Download, Upload, ChevronDown, CheckSquare, Square,
-  ShoppingBag, Filter, LayoutGrid,
+  ShoppingBag, Filter, LayoutGrid, ClipboardPaste, ChevronRight,
 } from "lucide-react";
 import { useProductStore } from "@/store/product-store";
 import { formatPrice } from "@/lib/utils";
@@ -39,8 +39,6 @@ export default function AdminDashboard() {
           <p className="text-xs text-gray-500 mt-1">Quan ly tai khoan dich vu so</p>
         </div>
 
-
-        {/* Stats */}
         <div className="p-4 border-b border-gray-100 space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-gray-500">San pham</span>
@@ -51,6 +49,7 @@ export default function AdminDashboard() {
             <span className="font-semibold text-green-600">{availableAccounts}/{totalAccounts}</span>
           </div>
         </div>
+
 
         {/* Category Nav */}
         <nav className="flex-1 overflow-y-auto p-2">
@@ -106,6 +105,7 @@ function ProductsView({ products, category }: { products: Product[]; category: P
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const filtered = products.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
@@ -140,6 +140,7 @@ function ProductsView({ products, category }: { products: Product[]; category: P
     a.href = url; a.download = "products.csv"; a.click();
     URL.revokeObjectURL(url);
   };
+
 
   const importCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -233,20 +234,24 @@ function ProductsView({ products, category }: { products: Product[]; category: P
           <tbody className="divide-y divide-gray-100">
             {filtered.map((product) => {
               const avail = product.accounts.filter((a) => a.status === "available").length;
+              const sold = product.accounts.filter((a) => a.status === "sold").length;
+              const expired = product.accounts.filter((a) => a.status === "expired").length;
               const isSelected = selected.has(product.id);
+              const isExpanded = expandedId === product.id;
               return (
-                <tr key={product.id} className={`hover:bg-gray-50 ${isSelected ? "bg-blue-50/50" : ""}`}>
-                  <td className="px-4 py-3"><button onClick={() => toggle(product.id)}>{isSelected ? <CheckSquare className="w-4 h-4 text-blue-600" /> : <Square className="w-4 h-4 text-gray-300" />}</button></td>
-                  <td className="px-4 py-3"><span className="font-medium text-sm text-gray-900">{product.name}</span></td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{CATEGORY_ICONS[product.category]} {CATEGORY_LABELS[product.category]}</td>
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{formatPrice(product.price)}</td>
-                  <td className="px-4 py-3 text-sm"><span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-50 text-green-700 text-xs font-medium">{avail} con</span><span className="text-gray-400 text-xs ml-1">/ {product.accounts.length}</span></td>
-                  <td className="px-4 py-3"><span className={`text-xs px-2 py-1 rounded-full font-medium ${product.status === "available" ? "bg-emerald-100 text-emerald-700" : product.status === "hidden" ? "bg-gray-100 text-gray-600" : "bg-red-100 text-red-700"}`}>{product.status === "available" ? "Dang ban" : product.status === "hidden" ? "An" : "Het hang"}</span></td>
-                  <td className="px-4 py-3"><div className="flex justify-end gap-1">
-                    <button onClick={() => setEditingId(product.id)} className="p-1.5 rounded-md text-gray-400 hover:text-blue-600 hover:bg-blue-50"><Edit className="w-4 h-4" /></button>
-                    <button onClick={() => { if (confirm("Xoa?")) deleteProduct(product.id); }} className="p-1.5 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50"><Trash2 className="w-4 h-4" /></button>
-                  </div></td>
-                </tr>
+                <ProductRow
+                  key={product.id}
+                  product={product}
+                  avail={avail}
+                  sold={sold}
+                  expired={expired}
+                  isSelected={isSelected}
+                  isExpanded={isExpanded}
+                  onToggleSelect={() => toggle(product.id)}
+                  onToggleExpand={() => setExpandedId(isExpanded ? null : product.id)}
+                  onEdit={() => setEditingId(product.id)}
+                  onDelete={() => { if (confirm("Xoa?")) deleteProduct(product.id); }}
+                />
               );
             })}
             {filtered.length === 0 && <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-400">Khong co san pham nao</td></tr>}
@@ -254,6 +259,99 @@ function ProductsView({ products, category }: { products: Product[]; category: P
         </table>
       </div>
     </div>
+  );
+}
+
+
+
+// ==================== PRODUCT ROW WITH EXPANDABLE DETAIL ====================
+function ProductRow({ product, avail, sold, expired, isSelected, isExpanded, onToggleSelect, onToggleExpand, onEdit, onDelete }: {
+  product: Product; avail: number; sold: number; expired: number;
+  isSelected: boolean; isExpanded: boolean;
+  onToggleSelect: () => void; onToggleExpand: () => void; onEdit: () => void; onDelete: () => void;
+}) {
+  return (
+    <>
+      <tr className={`hover:bg-gray-50 cursor-pointer ${isSelected ? "bg-blue-50/50" : ""}`} onClick={onToggleExpand}>
+        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+          <button onClick={onToggleSelect}>{isSelected ? <CheckSquare className="w-4 h-4 text-blue-600" /> : <Square className="w-4 h-4 text-gray-300" />}</button>
+        </td>
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-2">
+            <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+            <span className="font-medium text-sm text-gray-900">{product.name}</span>
+          </div>
+        </td>
+        <td className="px-4 py-3 text-sm text-gray-600">{CATEGORY_ICONS[product.category]} {CATEGORY_LABELS[product.category]}</td>
+        <td className="px-4 py-3 text-sm font-medium text-gray-900">{formatPrice(product.price)}</td>
+        <td className="px-4 py-3 text-sm">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-50 text-green-700 text-xs font-medium">{avail} con</span>
+          <span className="text-gray-400 text-xs ml-1">/ {product.accounts.length}</span>
+        </td>
+        <td className="px-4 py-3">
+          <span className={`text-xs px-2 py-1 rounded-full font-medium ${product.status === "available" ? "bg-emerald-100 text-emerald-700" : product.status === "hidden" ? "bg-gray-100 text-gray-600" : "bg-red-100 text-red-700"}`}>
+            {product.status === "available" ? "Dang ban" : product.status === "hidden" ? "An" : "Het hang"}
+          </span>
+        </td>
+        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+          <div className="flex justify-end gap-1">
+            <button onClick={onEdit} className="p-1.5 rounded-md text-gray-400 hover:text-blue-600 hover:bg-blue-50"><Edit className="w-4 h-4" /></button>
+            <button onClick={onDelete} className="p-1.5 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50"><Trash2 className="w-4 h-4" /></button>
+          </div>
+        </td>
+      </tr>
+      {isExpanded && (
+        <tr>
+          <td colSpan={7} className="px-0 py-0">
+            <div className="bg-gray-50 border-t border-b border-gray-200 px-6 py-4">
+              <div className="flex items-start justify-between">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 flex-1">
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Ten san pham</p>
+                    <p className="text-sm font-medium text-gray-900">{product.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Danh muc</p>
+                    <p className="text-sm text-gray-900">{CATEGORY_ICONS[product.category]} {CATEGORY_LABELS[product.category]}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Gia ban</p>
+                    <p className="text-sm font-medium text-gray-900">{formatPrice(product.price)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Thoi han</p>
+                    <p className="text-sm text-gray-900">{product.duration || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Mo ta</p>
+                    <p className="text-sm text-gray-900">{product.description || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Tinh nang</p>
+                    <div className="flex flex-wrap gap-1">
+                      {product.features.length > 0 ? product.features.map((f, i) => (
+                        <span key={i} className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">{f}</span>
+                      )) : <span className="text-sm text-gray-400">—</span>}
+                    </div>
+                  </div>
+                  <div className="col-span-2 md:col-span-3">
+                    <p className="text-xs text-gray-500 mb-1">Tai khoan</p>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium">Con hang: {avail}</span>
+                      <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700 font-medium">Da ban: {sold}</span>
+                      <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700 font-medium">Het han: {expired}</span>
+                    </div>
+                  </div>
+                </div>
+                <button onClick={onToggleExpand} className="ml-4 p-1.5 rounded-lg hover:bg-gray-200 text-gray-400">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 
@@ -268,6 +366,7 @@ function AccountsView({ products, category }: { products: Product[]; category: P
   const [editingAcc, setEditingAcc] = useState<string | null>(null);
   const [showPw, setShowPw] = useState<Record<string, boolean>>({});
   const [copied, setCopied] = useState<string | null>(null);
+  const [showPasteModal, setShowPasteModal] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const product = products.find((p) => p.id === selectedProduct) || products[0];
@@ -296,6 +395,16 @@ function AccountsView({ products, category }: { products: Product[]; category: P
     URL.revokeObjectURL(url);
   };
 
+  const exportTXT = () => {
+    if (!product) return;
+    const lines = accounts.map((a) => `${a.email}:${a.password}`).join("\n");
+    const blob = new Blob([lines], { type: "text/plain;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `accounts-${product.id}.txt`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+
   const importCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !product) return;
@@ -323,6 +432,41 @@ function AccountsView({ products, category }: { products: Product[]; category: P
     e.target.value = "";
   };
 
+  const handlePasteImport = (text: string) => {
+    if (!product || !text.trim()) return;
+    const lines = text.trim().split("\n");
+    let count = 0;
+    lines.forEach((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) return;
+      let email = "";
+      let password = "";
+      if (trimmed.includes(":")) {
+        const parts = trimmed.split(":");
+        email = parts[0].trim();
+        password = parts.slice(1).join(":").trim();
+      } else if (trimmed.includes(",")) {
+        const parts = trimmed.split(",");
+        email = parts[0].trim();
+        password = parts.slice(1).join(",").trim();
+      } else {
+        return;
+      }
+      if (email && password) {
+        const acc: AccountInfo = {
+          id: `paste-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          email,
+          password,
+          status: "available",
+        };
+        addAccount(product.id, acc);
+        count++;
+      }
+    });
+    alert(`Da import ${count} tai khoan`);
+    setShowPasteModal(false);
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -332,13 +476,21 @@ function AccountsView({ products, category }: { products: Product[]; category: P
         </div>
         <div className="flex items-center gap-2">
           <input type="file" ref={fileRef} accept=".csv" className="hidden" onChange={importCSV} />
+          <button onClick={() => setShowPasteModal(true)}
+            className="flex items-center gap-1.5 px-3 py-2 border border-purple-200 bg-purple-50 rounded-lg text-sm text-purple-700 hover:bg-purple-100 font-medium">
+            <ClipboardPaste className="w-4 h-4" /> Paste Import
+          </button>
           <button onClick={() => fileRef.current?.click()}
             className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
-            <Upload className="w-4 h-4" /> Import
+            <Upload className="w-4 h-4" /> Import CSV
           </button>
           <button onClick={exportCSV}
             className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
-            <Download className="w-4 h-4" /> Export
+            <Download className="w-4 h-4" /> Export CSV
+          </button>
+          <button onClick={exportTXT}
+            className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
+            <Download className="w-4 h-4" /> Export TXT
           </button>
           <button onClick={() => setShowForm(true)}
             className="flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium">
@@ -364,9 +516,10 @@ function AccountsView({ products, category }: { products: Product[]; category: P
         )}
       </div>
 
-      {/* Forms */}
+      {/* Forms & Modals */}
       {showForm && product && <AccountForm onClose={() => setShowForm(false)} onSave={(acc) => { addAccount(product.id, acc); setShowForm(false); }} />}
       {editingAcc && product && <AccountForm account={product.accounts.find((a) => a.id === editingAcc)} onClose={() => setEditingAcc(null)} onSave={(u) => { updateAccount(product.id, editingAcc, u); setEditingAcc(null); }} />}
+      {showPasteModal && <PasteImportModal onClose={() => setShowPasteModal(false)} onImport={handlePasteImport} />}
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
@@ -422,6 +575,45 @@ function AccountsView({ products, category }: { products: Product[]; category: P
 
 
 
+// ==================== PASTE IMPORT MODAL ====================
+function PasteImportModal({ onClose, onImport }: { onClose: () => void; onImport: (text: string) => void }) {
+  const [text, setText] = useState("");
+  const lineCount = text.trim() ? text.trim().split("\n").filter((l) => l.trim()).length : 0;
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <ClipboardPaste className="w-5 h-5 text-purple-600" />
+            <h3 className="text-lg font-bold text-gray-900">Paste Import</h3>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100"><X className="w-5 h-5 text-gray-500" /></button>
+        </div>
+        <p className="text-sm text-gray-500 mb-3">Dan danh sach tai khoan, moi dong mot tai khoan. Dinh dang: <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">email:password</code> hoac <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">email,password</code></p>
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={"user1@email.com:password123\nuser2@email.com:mypass456\nuser3@email.com,secretpw"}
+          className="w-full h-48 px-3 py-2.5 border border-gray-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+        />
+        <div className="flex items-center justify-between mt-4">
+          <span className="text-xs text-gray-500">{lineCount} dong phat hien</span>
+          <div className="flex gap-3">
+            <button onClick={onClose} className="px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50">Huy</button>
+            <button onClick={() => onImport(text)} disabled={lineCount === 0}
+              className="px-4 py-2.5 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+              <Upload className="w-4 h-4" /> Import {lineCount} tai khoan
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+
 // ==================== PRODUCT FORM ====================
 function ProductForm({ product, onClose, onSave, defaultCategory }: { product?: Product; onClose: () => void; onSave: (data: any) => void; defaultCategory?: ProductCategory }) {
   const [form, setForm] = useState({
@@ -449,18 +641,50 @@ function ProductForm({ product, onClose, onSave, defaultCategory }: { product?: 
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100"><X className="w-5 h-5 text-gray-500" /></button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div><label className="block text-sm font-medium text-gray-700 mb-1">Ten san pham</label><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-1">Mo ta</label><textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} /></div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Danh muc</label><select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as ProductCategory })} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">{Object.entries(CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Thoi han</label><input value={form.duration} onChange={(e) => setForm({ ...form, duration: e.target.value })} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Ten san pham</label>
+            <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Mo ta</label>
+            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Gia ban (VND)</label><input type="number" required value={form.price || ""} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Gia goc</label><input type="number" value={form.originalPrice || ""} onChange={(e) => setForm({ ...form, originalPrice: Number(e.target.value) })} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Danh muc</label>
+              <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as ProductCategory })} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                {Object.entries(CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Thoi han</label>
+              <input value={form.duration} onChange={(e) => setForm({ ...form, duration: e.target.value })} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
           </div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-1">Tinh nang (dau phay)</label><input value={form.features} onChange={(e) => setForm({ ...form, features: e.target.value })} placeholder="4K, Khong quang cao, Offline" className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
-          {product && <div><label className="block text-sm font-medium text-gray-700 mb-1">Trang thai</label><select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as Product["status"] })} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"><option value="available">Dang ban</option><option value="out_of_stock">Het hang</option><option value="hidden">An</option></select></div>}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Gia ban (VND)</label>
+              <input type="number" required value={form.price || ""} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Gia goc</label>
+              <input type="number" value={form.originalPrice || ""} onChange={(e) => setForm({ ...form, originalPrice: Number(e.target.value) })} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tinh nang (dau phay)</label>
+            <input value={form.features} onChange={(e) => setForm({ ...form, features: e.target.value })} placeholder="4K, Khong quang cao, Offline" className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          {product && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Trang thai</label>
+              <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as Product["status"] })} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="available">Dang ban</option>
+                <option value="out_of_stock">Het hang</option>
+                <option value="hidden">An</option>
+              </select>
+            </div>
+          )}
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50">Huy</button>
             <button type="submit" className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center justify-center gap-2"><Save className="w-4 h-4" />{product ? "Luu" : "Them"}</button>
@@ -471,14 +695,24 @@ function ProductForm({ product, onClose, onSave, defaultCategory }: { product?: 
   );
 }
 
+
+
 // ==================== ACCOUNT FORM ====================
 function AccountForm({ account, onClose, onSave }: { account?: AccountInfo; onClose: () => void; onSave: (data: any) => void }) {
-  const [form, setForm] = useState({ email: account?.email || "", password: account?.password || "", note: account?.note || "", status: account?.status || ("available" as AccountInfo["status"]) });
+  const [form, setForm] = useState({
+    email: account?.email || "",
+    password: account?.password || "",
+    note: account?.note || "",
+    status: account?.status || ("available" as AccountInfo["status"]),
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (account) { onSave({ email: form.email, password: form.password, note: form.note || undefined, status: form.status }); }
-    else { onSave({ id: `acc-${Date.now()}`, email: form.email, password: form.password, note: form.note || undefined, status: "available" }); }
+    if (account) {
+      onSave({ email: form.email, password: form.password, note: form.note || undefined, status: form.status });
+    } else {
+      onSave({ id: `acc-${Date.now()}`, email: form.email, password: form.password, note: form.note || undefined, status: "available" });
+    }
   };
 
   return (
@@ -489,10 +723,28 @@ function AccountForm({ account, onClose, onSave }: { account?: AccountInfo; onCl
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100"><X className="w-5 h-5 text-gray-500" /></button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div><label className="block text-sm font-medium text-gray-700 mb-1">Email</label><input required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-1">Mat khau</label><input required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-1">Ghi chu</label><input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Profile, PIN..." className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
-          {account && <div><label className="block text-sm font-medium text-gray-700 mb-1">Trang thai</label><select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as AccountInfo["status"] })} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"><option value="available">Con hang</option><option value="sold">Da ban</option><option value="expired">Het han</option></select></div>}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Mat khau</label>
+            <input required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Ghi chu</label>
+            <input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Profile, PIN..." className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          {account && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Trang thai</label>
+              <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as AccountInfo["status"] })} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="available">Con hang</option>
+                <option value="sold">Da ban</option>
+                <option value="expired">Het han</option>
+              </select>
+            </div>
+          )}
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50">Huy</button>
             <button type="submit" className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 flex items-center justify-center gap-2"><Save className="w-4 h-4" />{account ? "Luu" : "Them"}</button>
