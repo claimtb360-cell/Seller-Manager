@@ -1,0 +1,90 @@
+import { Order } from "@/types";
+
+// Sample orders for demo
+export const sampleOrders: Order[] = [
+  {
+    id: "ORD-001",
+    items: [
+      {
+        product: {
+          id: "netflix-1m",
+          name: "Netflix Premium 1 Tháng",
+          description: "",
+          category: "streaming",
+          price: 79000,
+          image: "/images/netflix.svg",
+          stock: 50,
+          features: [],
+          duration: "1 tháng",
+          status: "available",
+          createdAt: "2024-01-01",
+        },
+        quantity: 1,
+      },
+    ],
+    totalAmount: 79000,
+    customerName: "Nguyễn Văn A",
+    customerEmail: "nguyenvana@gmail.com",
+    customerPhone: "0901234567",
+    paymentMethod: "momo",
+    status: "delivered",
+    createdAt: "2024-03-15T10:30:00",
+    accountDetails: "email: acc123@gmail.com | pass: xxxxxx",
+  },
+  {
+    id: "ORD-002",
+    items: [
+      {
+        product: {
+          id: "spotify-1y",
+          name: "Spotify Premium 1 Năm",
+          description: "",
+          category: "music",
+          price: 349000,
+          image: "/images/spotify.svg",
+          stock: 40,
+          features: [],
+          duration: "1 năm",
+          status: "available",
+          createdAt: "2024-01-01",
+        },
+        quantity: 2,
+      },
+    ],
+    totalAmount: 698000,
+    customerName: "Trần Thị B",
+    customerEmail: "tranthib@gmail.com",
+    customerPhone: "0912345678",
+    paymentMethod: "bank_transfer",
+    status: "confirmed",
+    createdAt: "2024-03-16T14:20:00",
+  },
+  {
+    id: "ORD-003",
+    items: [
+      {
+        product: {
+          id: "chatgpt-plus-1m",
+          name: "ChatGPT Plus 1 Tháng",
+          description: "",
+          category: "productivity",
+          price: 299000,
+          image: "/images/chatgpt.svg",
+          stock: 15,
+          features: [],
+          duration: "1 tháng",
+          status: "available",
+          createdAt: "2024-01-01",
+        },
+        quantity: 1,
+      },
+    ],
+    totalAmount: 299000,
+    customerName: "Lê Văn C",
+    customerEmail: "levanc@gmail.com",
+    customerPhone: "0923456789",
+    paymentMethod: "zalopay",
+    status: "pending",
+    createdAt: "2024-03-17T09:00:00",
+  },
+];
